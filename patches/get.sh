@@ -35,6 +35,9 @@ download_if_not_exists https://st.suckless.org/patches/scrollback/st-scrollback-
 # https://st.suckless.org/patches/xresources/
 download_if_not_exists https://st.suckless.org/patches/xresources/st-xresources-20200604-9ba7ecf.diff
 
+# https://st.suckless.org/patches/alpha/
+download_if_not_exists https://st.suckless.org/patches/alpha/st-alpha-20240814-a0274bc.diff
+
 # https://st.suckless.org/patches/ligatures/
 download_if_not_exists https://st.suckless.org/patches/ligatures/0.9.2/st-ligatures-alpha-scrollback-20240427-0.9.2.diff
 #download_if_not_exists https://st.suckless.org/patches/ligatures/0.9.2/st-ligatures-alpha-scrollback-ringbuffer-20240427-0.9.2.diff
