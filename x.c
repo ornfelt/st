@@ -74,7 +74,8 @@ static void zoom(const Arg *);
 static void zoomabs(const Arg *);
 static void zoomreset(const Arg *);
 static void ttysend(const Arg *);
-static void chgalpha(const Arg *);
+static void changealpha(const Arg *);
+static float clamp(float value, float lower, float upper);
 
 /* config.h for applying patches and the configuration. */
 #include "config.h"
@@ -838,6 +839,9 @@ xloadcols(void)
 	dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
 	dc.col[defaultbg].pixel &= 0x00FFFFFF;
 	dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
+    dc.col[defaultbg].color.red   *= alpha;
+    dc.col[defaultbg].color.green *= alpha;
+    dc.col[defaultbg].color.blue  *= alpha;
 	loaded = 1;
 }
 
@@ -872,6 +876,9 @@ xsetcolorname(int x, const char *name)
 		dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
 		dc.col[defaultbg].pixel &= 0x00FFFFFF;
 		dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
+        dc.col[defaultbg].color.red   *= alpha;
+        dc.col[defaultbg].color.green *= alpha;
+        dc.col[defaultbg].color.blue  *= alpha;
 	}
 
 	return 0;
@@ -1293,7 +1300,7 @@ xinit(int cols, int rows)
 	xloadsparefonts();
 
    /* Backup default alpha value */
-   alpha_def = alpha;
+   //alpha_def = alpha;
 
 	/* colors */
 	xw.cmap = XCreateColormap(xw.dpy, parent, xw.vis, None);
@@ -1564,22 +1571,72 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	return numspecs;
 }
 
-void
-chgalpha(const Arg *arg)
-{
-   if (arg->f == -1.0f && alpha >= 0.1f)
-      alpha -= 0.1f;
-   else if (arg->f == 1.0f && alpha < 1.0f)
-      alpha += 0.1f;
-   else if (arg->f == 0.0f)
-      alpha = alpha_def;
-   else
-      return;
+//void
+//changealpha(const Arg *arg)
+//{
+//   if (arg->f == -1.0f && alpha >= 0.1f)
+//      alpha -= 0.1f;
+//   else if (arg->f == 1.0f && alpha < 1.0f)
+//      alpha += 0.1f;
+//   else if (arg->f == 0.0f)
+//      alpha = alpha_def;
+//   else
+//      return;
+//
+//   dc.col[defaultbg].color.alpha = (unsigned short)(0xFFFF * alpha);
+//   /* Required to remove artifacting from borderpx */
+//   cresize(0, 0);
+//   redraw();
+//}
 
-   dc.col[defaultbg].color.alpha = (unsigned short)(0xFFFF * alpha);
-   /* Required to remove artifacting from borderpx */
-   cresize(0, 0);
-   redraw();
+#include <stdio.h>
+#include <stdlib.h>
+void log_to_file(const char *message) {
+    const char *log_file_path = getenv("HOME"); // Get the home directory
+    if (log_file_path == NULL) {
+        return; // If HOME is not set, don't log
+    }
+
+    char file_path[256];
+    snprintf(file_path, sizeof(file_path), "%s/st_test.txt", log_file_path);
+
+    FILE *file = fopen(file_path, "a"); // Open the file in append mode
+    if (file != NULL) {
+        fprintf(file, "%s\n", message); // Write the message to the file
+        fclose(file);
+    }
+}
+
+float clamp(float value, float lower, float upper)
+{
+    if(value < lower)
+        return lower;
+    if(value > upper)
+        return upper;
+    return value;
+}
+void
+changealpha(const Arg *arg)
+{
+    if((alpha > 0 && arg->f < 0) || (alpha < 1 && arg->f > 0))
+        alpha += arg->f;
+
+    //if (alpha < 0.03){
+    //    defaultbg = alphaBg;
+    //}else {
+    //    defaultbg = defaultAlphaBg;
+    //}
+
+    alpha = clamp(alpha, 0.0, 1.0);
+    alphaUnfocus = clamp(alpha-alphaOffset, 0.0, 1.0);
+
+    xloadcols();
+    redraw();
+
+    // Debug
+    //char log_message[128];
+    //snprintf(log_message, sizeof(log_message), "changealpha called, alpha: %.2f", alpha);
+    //log_to_file(log_message);
 }
 
 void
