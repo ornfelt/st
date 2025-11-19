@@ -1209,13 +1209,13 @@ index bd018f9..b1a6cbb 100644
  /*
   * Default shape of cursor
 diff --git a/config.mk b/config.mk
-index ef6de39..b6458af 100644
+index ef6de39..e585a21 100644
 --- a/config.mk
 +++ b/config.mk
 @@ -1,5 +1,5 @@
  # st version
 -VERSION = 0.8.5
-+VERSION = 0.9.2
++VERSION = 0.9.3
  
  # Customize below to fit your system
  

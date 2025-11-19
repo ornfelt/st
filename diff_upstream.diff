@@ -730,16 +730,9 @@ index 0000000..b1a6cbb
 +"`abcdefghijklmnopqrstuvwxyz{|}~";
 +
 diff --git a/config.mk b/config.mk
-index 2fc854e..b6458af 100644
+index 2fc854e..e585a21 100644
 --- a/config.mk
 +++ b/config.mk
-@@ -1,5 +1,5 @@
- # st version
--VERSION = 0.9.3
-+VERSION = 0.9.2
- 
- # Customize below to fit your system
- 
 @@ -15,10 +15,12 @@ PKG_CONFIG = pkg-config
  # includes and libs
  INCS = -I$(X11INC) \
