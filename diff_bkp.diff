@@ -1618,7 +1618,7 @@ index e2a0e16..b82beb3 100644
  See the TODO file in the distribution.
 +
 diff --git a/st.c b/st.c
-index 0f35711..b74dfe7 100644
+index 0f35711..a7dbde3 100644
 --- a/st.c
 +++ b/st.c
 @@ -21,11 +21,11 @@
@@ -1841,7 +1841,7 @@ index 0f35711..b74dfe7 100644
  static void tcontrolcode(uchar );
  static void tdectest(char );
  static void tdefutf8(char);
-@@ -243,2166 +242,2165 @@ static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF
+@@ -243,2166 +242,2178 @@ static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF
  ssize_t
  xwrite(int fd, const char *s, size_t len)
  {
@@ -5056,6 +5056,19 @@ index 0f35711..b74dfe7 100644
 +			return;
 +		}
 +		break;
++		case 110:
++		case 111:
++		case 112:
++			if (narg != 1)
++				break;
++			if ((j = par - 110) < 0 || j >= LEN(osc_table))
++				break; /* shouldn't be possible */
++			if (xsetcolorname(osc_table[j].idx, NULL)) {
++				fprintf(stderr, "erresc: %s color not found\n", osc_table[j].str);
++			} else {
++				tfulldirt();
++			}
++			return;
 +	case 'k': /* old title set compatibility */
 +		xsettitle(strescseq.args[0]);
 +		return;
@@ -5679,7 +5692,7 @@ index 0f35711..b74dfe7 100644
  }
  
  /*
-@@ -2412,421 +2410,411 @@ tcontrolcode(uchar ascii)
+@@ -2412,421 +2423,411 @@ tcontrolcode(uchar ascii)
  int
  eschandle(uchar ascii)
  {
