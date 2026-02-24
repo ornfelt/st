@@ -165,7 +165,7 @@ index 2cd740a..3ede079 100644
  /*
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..23b3393
+index 0000000..f71b482
 --- /dev/null
 +++ b/config.h
 @@ -0,0 +1,606 @@
@@ -428,8 +428,8 @@ index 0000000..23b3393
 +static char *openurlcmd[] = { "/bin/sh", "-c", "st-urlhandler -o", "externalpipe", NULL };
 +static char *copyurlcmd[] = { "/bin/sh", "-c", "st-urlhandler -c", "externalpipe", NULL };
 +static char *copyoutput[] = { "/bin/sh", "-c", "st-copyout", "externalpipe", NULL };
-+static char *quickselectpaths[] = { "/bin/sh", "-c", "/home/jonas/.local/bin/my_scripts/2025/st-quickselect-paths-2.sh", "externalpipe", NULL };
-+static char *quickselectwords[] = { "/bin/sh", "-c", "/home/jonas/.local/bin/my_scripts/2025/st-quickselect-words-2.sh", "externalpipe", NULL };
++static char *quickselectpaths[] = { "/bin/sh", "-c", "/home/jonas/.local/bin/my_scripts/2025/st-quickselect-paths.sh", "externalpipe", NULL };
++static char *quickselectwords[] = { "/bin/sh", "-c", "/home/jonas/.local/bin/my_scripts/2025/st-quickselect-words.sh", "externalpipe", NULL };
 +
 +static Shortcut shortcuts[] = {
 +    /* mask                 keysym          function        argument */
