@@ -1225,7 +1225,7 @@ index 39120b4..b82beb3 100644
  defines the
  .I font
 diff --git a/st.c b/st.c
-index c15ca4b..894416e 100644
+index e55e7b3..700b1d3 100644
 --- a/st.c
 +++ b/st.c
 @@ -35,6 +35,7 @@
@@ -1340,44 +1340,23 @@ index c15ca4b..894416e 100644
  		while (last >= gp && last->u == ' ')
  			--last;
  
-@@ -712,24 +719,25 @@ execsh(char *cmd, char **args)
- void
- sigchld(int a)
- {
--	int stat, olderrno;
-+	int stat;
- 	pid_t p;
+@@ -718,8 +725,14 @@ sigchld(int a)
+ 	if ((p = waitpid(pid, &stat, WNOHANG)) < 0)
+ 		die("waiting for pid %hd failed: %s\n", pid, strerror(errno));
  
--	olderrno = errno;
--	do {
--		p = waitpid(pid, &stat, WNOHANG);
--	} while (p < 0 && errno == EINTR);
--
--	if (p < 0)
--		_exit(1);
-+	if ((p = waitpid(pid, &stat, WNOHANG)) < 0)
-+		die("waiting for pid %hd failed: %s\n", pid, strerror(errno));
- 
- 	if (pid != p) {
--		errno = olderrno;
+-	if (pid != p)
++	if (pid != p) {
 +		if (p == 0 && wait(&stat) < 0)
 +			die("wait: %s\n", strerror(errno));
 +
 +		/* reinstall sigchld handler */
 +		signal(SIGCHLD, sigchld);
  		return;
- 	}
++	}
  
--	if ((WIFEXITED(stat) && WEXITSTATUS(stat)) || WIFSIGNALED(stat))
--		_exit(1);
-+	if (WIFEXITED(stat) && WEXITSTATUS(stat))
-+		die("child exited with status %d\n", WEXITSTATUS(stat));
-+	else if (WIFSIGNALED(stat))
-+		die("child terminated due to signal %d\n", WTERMSIG(stat));
- 	_exit(0);
- }
- 
-@@ -808,7 +816,7 @@ ttynew(const char *line, char *cmd, const char *out, char **args)
+ 	if (WIFEXITED(stat) && WEXITSTATUS(stat))
+ 		die("child exited with status %d\n", WEXITSTATUS(stat));
+@@ -803,7 +816,7 @@ ttynew(const char *line, char *cmd, const char *out, char **args)
  		break;
  	default:
  #ifdef __OpenBSD__
@@ -1386,7 +1365,7 @@ index c15ca4b..894416e 100644
  			die("pledge\n");
  #endif
  		close(s);
-@@ -849,6 +857,9 @@ void
+@@ -844,6 +857,9 @@ void
  ttywrite(const char *s, size_t n, int may_echo)
  {
  	const char *next;
@@ -1396,17 +1375,7 @@ index c15ca4b..894416e 100644
  
  	if (may_echo && IS_SET(MODE_ECHO))
  		twrite(s, n, 1);
-@@ -970,9 +981,6 @@ tsetdirt(int top, int bot)
- {
- 	int i;
- 
--	if (term.row <= 0)
--		return;
--
- 	LIMIT(top, 0, term.row-1);
- 	LIMIT(bot, 0, term.row-1);
- 
-@@ -1063,13 +1071,53 @@ tswapscreen(void)
+@@ -1055,13 +1071,53 @@ tswapscreen(void)
  }
  
  void
@@ -1461,7 +1430,7 @@ index c15ca4b..894416e 100644
  	tsetdirt(orig, term.bot-n);
  	tclearregion(0, term.bot-n+1, term.col-1, term.bot);
  
-@@ -1079,17 +1127,28 @@ tscrolldown(int orig, int n)
+@@ -1071,17 +1127,28 @@ tscrolldown(int orig, int n)
  		term.line[i-n] = temp;
  	}
  
@@ -1492,7 +1461,7 @@ index c15ca4b..894416e 100644
  	tclearregion(0, orig, term.col-1, orig+n-1);
  	tsetdirt(orig+n, term.bot);
  
-@@ -1099,7 +1158,8 @@ tscrollup(int orig, int n)
+@@ -1091,7 +1158,8 @@ tscrollup(int orig, int n)
  		term.line[i+n] = temp;
  	}
  
@@ -1502,7 +1471,7 @@ index c15ca4b..894416e 100644
  }
  
  void
-@@ -1128,7 +1188,7 @@ tnewline(int first_col)
+@@ -1120,7 +1188,7 @@ tnewline(int first_col)
  	int y = term.c.y;
  
  	if (y == term.bot) {
@@ -1511,7 +1480,7 @@ index c15ca4b..894416e 100644
  	} else {
  		y++;
  	}
-@@ -1296,14 +1356,14 @@ void
+@@ -1288,14 +1356,14 @@ void
  tinsertblankline(int n)
  {
  	if (BETWEEN(term.c.y, term.top, term.bot))
@@ -1528,7 +1497,7 @@ index c15ca4b..894416e 100644
  }
  
  int32_t
-@@ -1747,11 +1807,11 @@ csihandle(void)
+@@ -1739,11 +1807,11 @@ csihandle(void)
  	case 'S': /* SU -- Scroll <n> line up */
  		if (csiescseq.priv) break;
  		DEFAULT(csiescseq.arg[0], 1);
@@ -1542,7 +1511,7 @@ index c15ca4b..894416e 100644
  		break;
  	case 'L': /* IL -- Insert <n> blank lines */
  		DEFAULT(csiescseq.arg[0], 1);
-@@ -1815,11 +1875,11 @@ csihandle(void)
+@@ -1807,11 +1875,11 @@ csihandle(void)
  		tcursor(CURSOR_SAVE);
  		break;
  	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
@@ -1559,7 +1528,7 @@ index c15ca4b..894416e 100644
  		break;
  	case ' ':
  		switch (csiescseq.mode[1]) {
-@@ -1975,6 +2035,8 @@ strhandle(void)
+@@ -1967,6 +2035,8 @@ strhandle(void)
  				tfulldirt();
  			}
  			return;
@@ -1568,7 +1537,7 @@ index c15ca4b..894416e 100644
  		case 110: /* reset dynamic VT100 text foreground color */
  		case 111: /* reset dynamic VT100 text background color */
  		case 112: /* reset dynamic text cursor color */
-@@ -1988,8 +2050,6 @@ strhandle(void)
+@@ -1980,8 +2050,6 @@ strhandle(void)
  				tfulldirt();
  			}
  			return;
@@ -1577,7 +1546,7 @@ index c15ca4b..894416e 100644
  	case 'k': /* old title set compatibility */
  		xsettitle(strescseq.args[0]);
  		return;
-@@ -2025,6 +2085,59 @@ strparse(void)
+@@ -2017,6 +2085,59 @@ strparse(void)
  	}
  }
  
@@ -1637,7 +1606,7 @@ index c15ca4b..894416e 100644
  void
  strdump(void)
  {
-@@ -2340,7 +2453,7 @@ eschandle(uchar ascii)
+@@ -2332,7 +2453,7 @@ eschandle(uchar ascii)
  		return 0;
  	case 'D': /* IND -- Linefeed */
  		if (term.c.y == term.bot) {
@@ -1646,7 +1615,7 @@ index c15ca4b..894416e 100644
  		} else {
  			tmoveto(term.c.x, term.c.y+1);
  		}
-@@ -2353,7 +2466,7 @@ eschandle(uchar ascii)
+@@ -2345,7 +2466,7 @@ eschandle(uchar ascii)
  		break;
  	case 'M': /* RI -- Reverse index */
  		if (term.c.y == term.top) {
@@ -1655,15 +1624,7 @@ index c15ca4b..894416e 100644
  		} else {
  			tmoveto(term.c.x, term.c.y-1);
  		}
-@@ -2366,7 +2479,6 @@ eschandle(uchar ascii)
- 		resettitle();
- 		xloadcols();
- 		xsetmode(0, MODE_HIDE);
--		xsetmode(0, MODE_BRCKTPASTE);
- 		break;
- 	case '=': /* DECPAM -- Application keypad */
- 		xsetmode(1, MODE_APPKEYPAD);
-@@ -2577,7 +2689,7 @@ twrite(const char *buf, int buflen, int show_ctrl)
+@@ -2569,7 +2690,7 @@ twrite(const char *buf, int buflen, int show_ctrl)
  void
  tresize(int col, int row)
  {
@@ -1672,7 +1633,7 @@ index c15ca4b..894416e 100644
  	int minrow = MIN(row, term.row);
  	int mincol = MIN(col, term.col);
  	int *bp;
-@@ -2614,6 +2726,14 @@ tresize(int col, int row)
+@@ -2606,6 +2727,14 @@ tresize(int col, int row)
  	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
  	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
  
@@ -1687,7 +1648,7 @@ index c15ca4b..894416e 100644
  	/* resize each row to new width, zero-pad if needed */
  	for (i = 0; i < minrow; i++) {
  		term.line[i] = xrealloc(term.line[i], col * sizeof(Glyph));
-@@ -2672,7 +2792,7 @@ drawregion(int x1, int y1, int x2, int y2)
+@@ -2664,7 +2793,7 @@ drawregion(int x1, int y1, int x2, int y2)
  			continue;
  
  		term.dirty[y] = 0;
@@ -1696,7 +1657,7 @@ index c15ca4b..894416e 100644
  	}
  }
  
-@@ -2693,8 +2813,11 @@ draw(void)
+@@ -2685,8 +2814,11 @@ draw(void)
  		cx--;
  
  	drawregion(0, 0, term.col, term.row);
