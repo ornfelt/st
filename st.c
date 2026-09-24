@@ -1151,10 +1151,11 @@ tscrollup(int orig, int n, int copyhist)
 		temp = term.hist[term.histi];
 		term.hist[term.histi] = term.line[orig];
 		term.line[orig] = temp;
-	}
 
-	if (term.scr > 0 && term.scr < HISTSIZE)
-		term.scr = MIN(term.scr + n, HISTSIZE-1);
+		/* keep the scrolled back view on the same lines */
+		if (term.scr > 0 && term.scr < HISTSIZE)
+			term.scr = MIN(term.scr + n, HISTSIZE-1);
+	}
 
 	tclearregion(0, orig, term.col-1, orig+n-1);
 	tsetdirt(orig+n, term.bot);
