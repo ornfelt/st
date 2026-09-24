@@ -731,13 +731,13 @@ sigchld(int a)
 		_exit(1);
 
 	if (pid != p) {
-		if (p == 0 && wait(&stat) < 0)
-			_exit(1);
-
-		/* reinstall sigchld handler */
-		signal(SIGCHLD, sigchld);
-		errno = olderrno;
-		return;
+		/* reap other exited children, e.g. from externalpipe */
+		while ((p = waitpid(-1, &stat, WNOHANG)) > 0 && p != pid)
+			;
+		if (p != pid) {
+			errno = olderrno;
+			return;
+		}
 	}
 
 	if ((WIFEXITED(stat) && WEXITSTATUS(stat)) || WIFSIGNALED(stat))
