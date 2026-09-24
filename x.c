@@ -75,7 +75,6 @@ static void zoomabs(const Arg *);
 static void zoomreset(const Arg *);
 static void ttysend(const Arg *);
 static void changealpha(const Arg *);
-static float clamp(float value, float lower, float upper);
 
 /* config.h for applying patches and the configuration. */
 #include "config.h"
@@ -1299,9 +1298,6 @@ xinit(int cols, int rows)
 	/* spare fonts */
 	xloadsparefonts();
 
-   /* Backup default alpha value */
-   //alpha_def = alpha;
-
 	/* colors */
 	xw.cmap = XCreateColormap(xw.dpy, parent, xw.vis, None);
 	xloadcols();
@@ -1425,7 +1421,7 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	FcFontSet *fcsets[] = { NULL };
 	FcCharSet *fccharset;
 	int i, f, length = 0, start = 0, numspecs = 0;
-	float cluster_xp = xp, cluster_yp = yp;
+	float cluster_xp, cluster_yp;
 	HbTransformData shaped = { 0 };
 
 	/* Initial values. */
@@ -1571,71 +1567,14 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
 	return numspecs;
 }
 
-//void
-//changealpha(const Arg *arg)
-//{
-//   if (arg->f == -1.0f && alpha >= 0.1f)
-//      alpha -= 0.1f;
-//   else if (arg->f == 1.0f && alpha < 1.0f)
-//      alpha += 0.1f;
-//   else if (arg->f == 0.0f)
-//      alpha = alpha_def;
-//   else
-//      return;
-//
-//   dc.col[defaultbg].color.alpha = (unsigned short)(0xFFFF * alpha);
-//   /* Required to remove artifacting from borderpx */
-//   cresize(0, 0);
-//   redraw();
-//}
-
-#include <stdio.h>
-#include <stdlib.h>
-void log_to_file(const char *message) {
-    const char *log_file_path = getenv("HOME"); // Get the home directory
-    if (log_file_path == NULL) {
-        return; // If HOME is not set, don't log
-    }
-
-    char file_path[256];
-    snprintf(file_path, sizeof(file_path), "%s/st_test.txt", log_file_path);
-
-    FILE *file = fopen(file_path, "a"); // Open the file in append mode
-    if (file != NULL) {
-        fprintf(file, "%s\n", message); // Write the message to the file
-        fclose(file);
-    }
-}
-
-float clamp(float value, float lower, float upper)
-{
-    if(value < lower)
-        return lower;
-    if(value > upper)
-        return upper;
-    return value;
-}
 void
 changealpha(const Arg *arg)
 {
-    if((alpha > 0 && arg->f < 0) || (alpha < 1 && arg->f > 0))
-        alpha += arg->f;
+	alpha += arg->f;
+	LIMIT(alpha, 0.0, 1.0);
 
-    //if (alpha < 0.03){
-    //    defaultbg = alphaBg;
-    //}else {
-    //    defaultbg = defaultAlphaBg;
-    //}
-
-    alpha = clamp(alpha, 0.0, 1.0);
-
-    xloadcols();
-    redraw();
-
-    // Debug
-    //char log_message[128];
-    //snprintf(log_message, sizeof(log_message), "changealpha called, alpha: %.2f", alpha);
-    //log_to_file(log_message);
+	xloadcols();
+	redraw();
 }
 
 void
@@ -1786,10 +1725,6 @@ void
 xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og, Line line, int len)
 {
 	Color drawcol;
-
-	/* remove the old cursor */
-	if (selected(ox, oy))
-		og.mode ^= ATTR_REVERSE;
 
 	/* Redraw the line where cursor was previously.
 	 * It will restore the ligatures broken by the cursor. */
