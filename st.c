@@ -2042,8 +2042,6 @@ strhandle(void)
 				tfulldirt();
 			}
 			return;
-		}
-		break;
 		case 110: /* reset dynamic VT100 text foreground color */
 		case 111: /* reset dynamic VT100 text background color */
 		case 112: /* reset dynamic text cursor color */
@@ -2057,6 +2055,8 @@ strhandle(void)
 				tfulldirt();
 			}
 			return;
+		}
+		break;
 	case 'k': /* old title set compatibility */
 		xsettitle(strescseq.args[0]);
 		return;
