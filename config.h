@@ -280,8 +280,6 @@ static Shortcut shortcuts[] = {
     { ShiftMask,            XK_Insert,      clippaste,      {.i =  0} },
     /* bind alt-v: clippaste */
     { MODKEY,               XK_v,           clippaste,      {.i =  0} },
-    /* bind shift-insert: selpaste */
-    { ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
     /* bind alt-shift-numlock: numlock */
     { TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
     /* bind shift-pageup: kscrollup -1 (scroll page up) */
