@@ -174,6 +174,7 @@ static void cresize(int, int);
 static void xresize(int, int);
 static void xhints(void);
 static int xloadcolor(int, const char *, Color *);
+static void xapplyalpha(void);
 static int xloadfont(Font *, FcPattern *);
 static void xloadfonts(const char *, double);
 static int xloadsparefont(FcPattern *, int);
@@ -818,6 +819,18 @@ xloadcolor(int i, const char *name, Color *ncolor)
 	return XftColorAllocName(xw.dpy, xw.vis, xw.cmap, name, ncolor);
 }
 
+/* apply alpha to the background color, premultiplied */
+void
+xapplyalpha(void)
+{
+	dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
+	dc.col[defaultbg].pixel &= 0x00FFFFFF;
+	dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
+	dc.col[defaultbg].color.red   *= alpha;
+	dc.col[defaultbg].color.green *= alpha;
+	dc.col[defaultbg].color.blue  *= alpha;
+}
+
 void
 xloadcols(void)
 {
@@ -841,12 +854,7 @@ xloadcols(void)
 				die("could not allocate color %d\n", i);
 		}
 
-	dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
-	dc.col[defaultbg].pixel &= 0x00FFFFFF;
-	dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
-    dc.col[defaultbg].color.red   *= alpha;
-    dc.col[defaultbg].color.green *= alpha;
-    dc.col[defaultbg].color.blue  *= alpha;
+	xapplyalpha();
 	loaded = 1;
 }
 
@@ -884,14 +892,8 @@ xsetcolorname(int x, const char *name)
 	XftColorFree(xw.dpy, xw.vis, xw.cmap, &dc.col[x]);
 	dc.col[x] = ncolor;
 
-	if (x == defaultbg) {
-		dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
-		dc.col[defaultbg].pixel &= 0x00FFFFFF;
-		dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
-        dc.col[defaultbg].color.red   *= alpha;
-        dc.col[defaultbg].color.green *= alpha;
-        dc.col[defaultbg].color.blue  *= alpha;
-	}
+	if (x == defaultbg)
+		xapplyalpha();
 
 	return 0;
 }
