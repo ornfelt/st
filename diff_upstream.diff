@@ -213,7 +213,7 @@ index 15db421..5ab92b9 100644
  $(OBJ): config.h config.mk
  
 diff --git a/config.def.h b/config.def.h
-index 2cd740a..d026e9c 100644
+index 2cd740a..a5ec8fb 100644
 --- a/config.def.h
 +++ b/config.def.h
 @@ -6,6 +6,12 @@
@@ -269,8 +269,8 @@ index 2cd740a..d026e9c 100644
 +		{ "cursorColor",  STRING,  &colorname[258] },
 +		{ "termname",     STRING,  &termname },
 +		{ "shell",        STRING,  &shell },
-+		{ "minlatency",   INTEGER, &minlatency },
-+		{ "maxlatency",   INTEGER, &maxlatency },
++		{ "minlatency",   DOUBLE,  &minlatency },
++		{ "maxlatency",   DOUBLE,  &maxlatency },
 +		{ "blinktimeout", INTEGER, &blinktimeout },
 +		{ "bellvolume",   INTEGER, &bellvolume },
 +		{ "tabspaces",    INTEGER, &tabspaces },
@@ -293,10 +293,10 @@ index 2cd740a..d026e9c 100644
  /*
 diff --git a/config.h b/config.h
 new file mode 100644
-index 0000000..d142492
+index 0000000..8143d71
 --- /dev/null
 +++ b/config.h
-@@ -0,0 +1,600 @@
+@@ -0,0 +1,598 @@
 +/* See LICENSE file for copyright and license details. */
 +
 +/*
@@ -510,8 +510,8 @@ index 0000000..d142492
 +    { "cursorColor",  STRING,  &colorname[256] },
 +    { "termname",     STRING,  &termname },
 +    { "shell",        STRING,  &shell },
-+    { "minlatency",   INTEGER, &minlatency },
-+    { "maxlatency",   INTEGER, &maxlatency },
++    { "minlatency",   DOUBLE,  &minlatency },
++    { "maxlatency",   DOUBLE,  &maxlatency },
 +    { "blinktimeout", INTEGER, &blinktimeout },
 +    { "bellvolume",   INTEGER, &bellvolume },
 +    { "tabspaces",    INTEGER, &tabspaces },
@@ -579,8 +579,6 @@ index 0000000..d142492
 +    { ShiftMask,            XK_Insert,      clippaste,      {.i =  0} },
 +    /* bind alt-v: clippaste */
 +    { MODKEY,               XK_v,           clippaste,      {.i =  0} },
-+    /* bind shift-insert: selpaste */
-+    { ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
 +    /* bind alt-shift-numlock: numlock */
 +    { TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 +    /* bind shift-pageup: kscrollup -1 (scroll page up) */
@@ -1153,7 +1151,7 @@ index 0000000..f6d383e
 +awk "/^$chosen$/{p=1;print;next} p&&/$eps1/{p=0};p" "$tmpfile" | xclip -selection clipboard
 diff --git a/st-urlhandler b/st-urlhandler
 new file mode 100755
-index 0000000..9ebdf6f
+index 0000000..a2f78c1
 --- /dev/null
 +++ b/st-urlhandler
 @@ -0,0 +1,25 @@
@@ -1177,7 +1175,7 @@ index 0000000..9ebdf6f
 +	h) printf "Optional arguments for custom use:\\n  -c: copy\\n  -o: xdg-open\\n  -h: Show this message\\n" && exit 1 ;;
 +	#o) chosen="$(echo "$urls" | dmenu -i -p 'Follow which url?' -l 10)"
 +	o) chosen="$(echo "$urls" | rofi -theme 'gruvbox-dark.rasi' -p 'Follow which url?' -dmenu -i -l 10)"
-+	setsid xdg-open "$chosen" >/dev/null 2>&1 & ;;
++	[ -n "$chosen" ] && setsid xdg-open "$chosen" >/dev/null 2>&1 & ;;
 +	#c) echo "$urls" | dmenu -i -p 'Copy which url?' -l 10 | tr -d '\n' | xclip -selection clipboard ;;
 +	c) echo "$urls" | rofi -theme 'gruvbox-dark.rasi' -p 'Copy which url?' -dmenu -i -l 10 | tr -d '\n' | xclip -selection clipboard ;;
 +	*) printf "Invalid option: -%s\\n" "$OPTARG" && exit 1 ;;
@@ -1241,7 +1239,7 @@ index 39120b4..4c441bc 100644
  .BI \-o " iofile"
  writes all the I/O to
 diff --git a/st.c b/st.c
-index c15ca4b..b1d1689 100644
+index c15ca4b..5eb52c3 100644
 --- a/st.c
 +++ b/st.c
 @@ -35,6 +35,7 @@
@@ -1262,17 +1260,18 @@ index c15ca4b..b1d1689 100644
  
  enum term_mode {
  	MODE_WRAP        = 1 << 0,
-@@ -115,6 +119,9 @@ typedef struct {
+@@ -115,6 +119,10 @@ typedef struct {
  	int col;      /* nb col */
  	Line *line;   /* screen */
  	Line *alt;    /* alternate screen */
 +	Line hist[HISTSIZE]; /* history buffer */
 +	int histi;    /* history index */
++	int histn;    /* number of lines in history */
 +	int scr;      /* scroll back */
  	int *dirty;   /* dirtyness of lines */
  	TCursor c;    /* cursor */
  	int ocx;      /* old cursor col */
-@@ -185,7 +192,7 @@ static void tnewline(int);
+@@ -185,7 +193,7 @@ static void tnewline(int);
  static void tputtab(int);
  static void tputc(Rune);
  static void treset(void);
@@ -1281,7 +1280,7 @@ index c15ca4b..b1d1689 100644
  static void tscrolldown(int, int);
  static void tsetattr(const int *, int);
  static void tsetchar(Rune, const Glyph *, int, int);
-@@ -409,10 +416,10 @@ tlinelen(int y)
+@@ -409,10 +417,10 @@ tlinelen(int y)
  {
  	int i = term.col;
  
@@ -1294,7 +1293,7 @@ index c15ca4b..b1d1689 100644
  		--i;
  
  	return i;
-@@ -521,7 +528,7 @@ selsnap(int *x, int *y, int direction)
+@@ -521,7 +529,7 @@ selsnap(int *x, int *y, int direction)
  		 * Snap around if the word wraps around at the end or
  		 * beginning of a line.
  		 */
@@ -1303,7 +1302,7 @@ index c15ca4b..b1d1689 100644
  		prevdelim = ISDELIM(prevgp->u);
  		for (;;) {
  			newx = *x + direction;
-@@ -536,14 +543,14 @@ selsnap(int *x, int *y, int direction)
+@@ -536,14 +544,14 @@ selsnap(int *x, int *y, int direction)
  					yt = *y, xt = *x;
  				else
  					yt = newy, xt = newx;
@@ -1320,7 +1319,7 @@ index c15ca4b..b1d1689 100644
  			delim = ISDELIM(gp->u);
  			if (!(gp->mode & ATTR_WDUMMY) && (delim != prevdelim
  					|| (delim && gp->u != prevgp->u)))
-@@ -564,14 +571,14 @@ selsnap(int *x, int *y, int direction)
+@@ -564,14 +572,14 @@ selsnap(int *x, int *y, int direction)
  		*x = (direction < 0) ? 0 : term.col - 1;
  		if (direction < 0) {
  			for (; *y > 0; *y += direction) {
@@ -1337,7 +1336,7 @@ index c15ca4b..b1d1689 100644
  						& ATTR_WRAP)) {
  					break;
  				}
-@@ -602,13 +609,13 @@ getsel(void)
+@@ -602,13 +610,13 @@ getsel(void)
  		}
  
  		if (sel.type == SEL_RECTANGULAR) {
@@ -1354,7 +1353,7 @@ index c15ca4b..b1d1689 100644
  		while (last >= gp && last->u == ' ')
  			--last;
  
-@@ -724,8 +731,13 @@ sigchld(int a)
+@@ -724,8 +732,13 @@ sigchld(int a)
  		_exit(1);
  
  	if (pid != p) {
@@ -1370,7 +1369,7 @@ index c15ca4b..b1d1689 100644
  	}
  
  	if ((WIFEXITED(stat) && WEXITSTATUS(stat)) || WIFSIGNALED(stat))
-@@ -808,7 +820,7 @@ ttynew(const char *line, char *cmd, const char *out, char **args)
+@@ -808,7 +821,7 @@ ttynew(const char *line, char *cmd, const char *out, char **args)
  		break;
  	default:
  #ifdef __OpenBSD__
@@ -1379,7 +1378,7 @@ index c15ca4b..b1d1689 100644
  			die("pledge\n");
  #endif
  		close(s);
-@@ -849,6 +861,9 @@ void
+@@ -849,6 +862,9 @@ void
  ttywrite(const char *s, size_t n, int may_echo)
  {
  	const char *next;
@@ -1389,7 +1388,7 @@ index c15ca4b..b1d1689 100644
  
  	if (may_echo && IS_SET(MODE_ECHO))
  		twrite(s, n, 1);
-@@ -1059,9 +1074,57 @@ tswapscreen(void)
+@@ -1059,9 +1075,60 @@ tswapscreen(void)
  	term.line = term.alt;
  	term.alt = tmp;
  	term.mode ^= MODE_ALTSCREEN;
@@ -1437,7 +1436,10 @@ index c15ca4b..b1d1689 100644
 +	if (n < 0)
 +		n = term.row + n;
 +
-+	if (term.scr <= HISTSIZE-n) {
++	/* don't scroll past the oldest line in history */
++	n = MIN(n, term.histn - term.scr);
++
++	if (n > 0) {
 +		term.scr += n;
 +		selscroll(0, n);
 +		tfulldirt();
@@ -1447,7 +1449,7 @@ index c15ca4b..b1d1689 100644
  void
  tscrolldown(int orig, int n)
  {
-@@ -1079,17 +1142,29 @@ tscrolldown(int orig, int n)
+@@ -1079,17 +1146,30 @@ tscrolldown(int orig, int n)
  		term.line[i-n] = temp;
  	}
  
@@ -1470,6 +1472,7 @@ index c15ca4b..b1d1689 100644
 +		temp = term.hist[term.histi];
 +		term.hist[term.histi] = term.line[orig];
 +		term.line[orig] = temp;
++		term.histn = MIN(term.histn + 1, HISTSIZE);
 +
 +		/* keep the scrolled back view on the same lines */
 +		if (term.scr > 0 && term.scr < HISTSIZE)
@@ -1479,7 +1482,7 @@ index c15ca4b..b1d1689 100644
  	tclearregion(0, orig, term.col-1, orig+n-1);
  	tsetdirt(orig+n, term.bot);
  
-@@ -1099,7 +1174,8 @@ tscrollup(int orig, int n)
+@@ -1099,7 +1179,8 @@ tscrollup(int orig, int n)
  		term.line[i+n] = temp;
  	}
  
@@ -1489,7 +1492,7 @@ index c15ca4b..b1d1689 100644
  }
  
  void
-@@ -1128,7 +1204,7 @@ tnewline(int first_col)
+@@ -1128,7 +1209,7 @@ tnewline(int first_col)
  	int y = term.c.y;
  
  	if (y == term.bot) {
@@ -1498,7 +1501,7 @@ index c15ca4b..b1d1689 100644
  	} else {
  		y++;
  	}
-@@ -1303,7 +1379,7 @@ void
+@@ -1303,7 +1384,7 @@ void
  tdeleteline(int n)
  {
  	if (BETWEEN(term.c.y, term.top, term.bot))
@@ -1507,7 +1510,7 @@ index c15ca4b..b1d1689 100644
  }
  
  int32_t
-@@ -1747,7 +1823,7 @@ csihandle(void)
+@@ -1747,7 +1828,7 @@ csihandle(void)
  	case 'S': /* SU -- Scroll <n> line up */
  		if (csiescseq.priv) break;
  		DEFAULT(csiescseq.arg[0], 1);
@@ -1516,7 +1519,7 @@ index c15ca4b..b1d1689 100644
  		break;
  	case 'T': /* SD -- Scroll <n> line down */
  		DEFAULT(csiescseq.arg[0], 1);
-@@ -1815,11 +1891,11 @@ csihandle(void)
+@@ -1815,11 +1896,11 @@ csihandle(void)
  		tcursor(CURSOR_SAVE);
  		break;
  	case 'u': /* DECRC -- Restore cursor position (ANSI.SYS) */
@@ -1533,7 +1536,7 @@ index c15ca4b..b1d1689 100644
  		break;
  	case ' ':
  		switch (csiescseq.mode[1]) {
-@@ -2025,6 +2101,59 @@ strparse(void)
+@@ -2025,6 +2106,59 @@ strparse(void)
  	}
  }
  
@@ -1593,7 +1596,7 @@ index c15ca4b..b1d1689 100644
  void
  strdump(void)
  {
-@@ -2340,7 +2469,7 @@ eschandle(uchar ascii)
+@@ -2340,7 +2474,7 @@ eschandle(uchar ascii)
  		return 0;
  	case 'D': /* IND -- Linefeed */
  		if (term.c.y == term.bot) {
@@ -1602,7 +1605,7 @@ index c15ca4b..b1d1689 100644
  		} else {
  			tmoveto(term.c.x, term.c.y+1);
  		}
-@@ -2577,7 +2706,7 @@ twrite(const char *buf, int buflen, int show_ctrl)
+@@ -2577,7 +2711,7 @@ twrite(const char *buf, int buflen, int show_ctrl)
  void
  tresize(int col, int row)
  {
@@ -1611,7 +1614,27 @@ index c15ca4b..b1d1689 100644
  	int minrow = MIN(row, term.row);
  	int mincol = MIN(col, term.col);
  	int *bp;
-@@ -2614,6 +2743,14 @@ tresize(int col, int row)
+@@ -2595,8 +2729,17 @@ tresize(int col, int row)
+ 	 * memmove because we're freeing the earlier lines
+ 	 */
+ 	for (i = 0; i <= term.c.y - row; i++) {
+-		free(term.line[i]);
+-		free(term.alt[i]);
++		/* keep the lines slid off the main screen in history */
++		term.histi = (term.histi + 1) % HISTSIZE;
++		free(term.hist[term.histi]);
++		if (IS_SET(MODE_ALTSCREEN)) {
++			term.hist[term.histi] = term.alt[i];
++			free(term.line[i]);
++		} else {
++			term.hist[term.histi] = term.line[i];
++			free(term.alt[i]);
++		}
++		term.histn = MIN(term.histn + 1, HISTSIZE);
+ 	}
+ 	/* ensure that both src and dst are not NULL */
+ 	if (i > 0) {
+@@ -2614,6 +2757,14 @@ tresize(int col, int row)
  	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
  	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
  
@@ -1626,7 +1649,7 @@ index c15ca4b..b1d1689 100644
  	/* resize each row to new width, zero-pad if needed */
  	for (i = 0; i < minrow; i++) {
  		term.line[i] = xrealloc(term.line[i], col * sizeof(Glyph));
-@@ -2672,7 +2809,7 @@ drawregion(int x1, int y1, int x2, int y2)
+@@ -2672,7 +2823,7 @@ drawregion(int x1, int y1, int x2, int y2)
  			continue;
  
  		term.dirty[y] = 0;
@@ -1635,7 +1658,7 @@ index c15ca4b..b1d1689 100644
  	}
  }
  
-@@ -2693,8 +2830,11 @@ draw(void)
+@@ -2693,8 +2844,11 @@ draw(void)
  		cx--;
  
  	drawregion(0, 0, term.col, term.row);
@@ -1689,7 +1712,7 @@ index 6de960d..94679e4 100644
  void xfinishdraw(void);
  void xloadcols(void);
 diff --git a/x.c b/x.c
-index d73152b..2f245c3 100644
+index d73152b..4fbe8d9 100644
 --- a/x.c
 +++ b/x.c
 @@ -14,11 +14,13 @@
@@ -1706,7 +1729,7 @@ index d73152b..2f245c3 100644
  
  /* types used in config.h */
  typedef struct {
-@@ -45,6 +47,19 @@ typedef struct {
+@@ -45,6 +47,20 @@ typedef struct {
  	signed char appcursor; /* application cursor */
  } Key;
  
@@ -1714,7 +1737,8 @@ index d73152b..2f245c3 100644
 +enum resource_type {
 +	STRING = 0,
 +	INTEGER = 1,
-+	FLOAT = 2
++	FLOAT = 2,
++	DOUBLE = 3
 +};
 +
 +typedef struct {
@@ -1726,7 +1750,7 @@ index d73152b..2f245c3 100644
  /* X modifiers */
  #define XK_ANY_MOD    UINT_MAX
  #define XK_NO_MOD     0
-@@ -59,6 +74,7 @@ static void zoom(const Arg *);
+@@ -59,6 +75,7 @@ static void zoom(const Arg *);
  static void zoomabs(const Arg *);
  static void zoomreset(const Arg *);
  static void ttysend(const Arg *);
@@ -1734,7 +1758,7 @@ index d73152b..2f245c3 100644
  
  /* config.h for applying patches and the configuration. */
  #include "config.h"
-@@ -105,6 +121,7 @@ typedef struct {
+@@ -105,6 +122,7 @@ typedef struct {
  	XSetWindowAttributes attrs;
  	int scr;
  	int isfixed; /* is fixed geometry? */
@@ -1742,7 +1766,7 @@ index d73152b..2f245c3 100644
  	int l, t; /* left and top offset */
  	int gm; /* geometry mask */
  } XWindow;
-@@ -141,8 +158,9 @@ typedef struct {
+@@ -141,8 +159,9 @@ typedef struct {
  } DC;
  
  static inline ushort sixd_to_16bit(int);
@@ -1753,7 +1777,7 @@ index d73152b..2f245c3 100644
  static void xdrawglyph(Glyph, int, int);
  static void xclear(int, int, int, int);
  static int xgeommasktogravity(int);
-@@ -157,6 +175,8 @@ static void xhints(void);
+@@ -157,6 +176,8 @@ static void xhints(void);
  static int xloadcolor(int, const char *, Color *);
  static int xloadfont(Font *, FcPattern *);
  static void xloadfonts(const char *, double);
@@ -1762,15 +1786,16 @@ index d73152b..2f245c3 100644
  static void xunloadfont(Font *);
  static void xunloadfonts(void);
  static void xsetenv(void);
-@@ -251,6 +271,7 @@ static char *opt_io    = NULL;
+@@ -251,6 +272,8 @@ static char *opt_io    = NULL;
  static char *opt_line  = NULL;
  static char *opt_name  = NULL;
  static char *opt_title = NULL;
 +static char *opt_dir   = NULL;
++static char *opt_alpha = NULL;
  
  static uint buttons; /* bit field of pressed buttons */
  
-@@ -306,6 +327,7 @@ zoomabs(const Arg *arg)
+@@ -306,6 +329,7 @@ zoomabs(const Arg *arg)
  {
  	xunloadfonts();
  	xloadfonts(usedfont, arg->f);
@@ -1778,7 +1803,7 @@ index d73152b..2f245c3 100644
  	cresize(0, 0);
  	redraw();
  	xhints();
-@@ -457,6 +479,10 @@ mouseaction(XEvent *e, uint release)
+@@ -457,6 +481,10 @@ mouseaction(XEvent *e, uint release)
  		    ms->button == e->xbutton.button &&
  		    (match(ms->mod, state) ||  /* exact or forced */
  		     match(ms->mod, state & ~forcemousemod))) {
@@ -1789,7 +1814,7 @@ index d73152b..2f245c3 100644
  			ms->func(&(ms->arg));
  			return 1;
  		}
-@@ -752,12 +778,12 @@ xresize(int col, int row)
+@@ -752,12 +780,12 @@ xresize(int col, int row)
  
  	XFreePixmap(xw.dpy, xw.buf);
  	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
@@ -1804,7 +1829,7 @@ index d73152b..2f245c3 100644
  }
  
  ushort
-@@ -812,6 +838,13 @@ xloadcols(void)
+@@ -812,6 +840,13 @@ xloadcols(void)
  			else
  				die("could not allocate color %d\n", i);
  		}
@@ -1818,7 +1843,7 @@ index d73152b..2f245c3 100644
  	loaded = 1;
  }
  
-@@ -825,6 +858,13 @@ xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b)
+@@ -825,6 +860,13 @@ xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b)
  	*g = dc.col[x].color.green >> 8;
  	*b = dc.col[x].color.blue >> 8;
  
@@ -1832,7 +1857,7 @@ index d73152b..2f245c3 100644
  	return 0;
  }
  
-@@ -842,6 +882,15 @@ xsetcolorname(int x, const char *name)
+@@ -842,6 +884,15 @@ xsetcolorname(int x, const char *name)
  	XftColorFree(xw.dpy, xw.vis, xw.cmap, &dc.col[x]);
  	dc.col[x] = ncolor;
  
@@ -1848,7 +1873,7 @@ index d73152b..2f245c3 100644
  	return 0;
  }
  
-@@ -859,8 +908,8 @@ xclear(int x1, int y1, int x2, int y2)
+@@ -859,8 +910,8 @@ xclear(int x1, int y1, int x2, int y2)
  void
  xhints(void)
  {
@@ -1859,7 +1884,7 @@ index d73152b..2f245c3 100644
  	XWMHints wm = {.flags = InputHint, .input = 1};
  	XSizeHints *sizeh;
  
-@@ -1050,6 +1099,101 @@ xloadfonts(const char *fontstr, double fontsize)
+@@ -1050,6 +1101,101 @@ xloadfonts(const char *fontstr, double fontsize)
  	FcPatternDestroy(pattern);
  }
  
@@ -1961,7 +1986,7 @@ index d73152b..2f245c3 100644
  void
  xunloadfont(Font *f)
  {
-@@ -1062,6 +1206,9 @@ xunloadfont(Font *f)
+@@ -1062,6 +1208,9 @@ xunloadfont(Font *f)
  void
  xunloadfonts(void)
  {
@@ -1971,7 +1996,7 @@ index d73152b..2f245c3 100644
  	/* Free the loaded fonts in the font cache.  */
  	while (frclen > 0)
  		XftFontClose(xw.dpy, frc[--frclen].font);
-@@ -1134,11 +1281,23 @@ xinit(int cols, int rows)
+@@ -1134,11 +1283,23 @@ xinit(int cols, int rows)
  	Window parent, root;
  	pid_t thispid = getpid();
  	XColor xmousefg, xmousebg;
@@ -1998,7 +2023,7 @@ index d73152b..2f245c3 100644
  
  	/* font */
  	if (!FcInit())
-@@ -1147,8 +1306,11 @@ xinit(int cols, int rows)
+@@ -1147,8 +1308,11 @@ xinit(int cols, int rows)
  	usedfont = (opt_font == NULL)? font : opt_font;
  	xloadfonts(usedfont, 0);
  
@@ -2011,7 +2036,7 @@ index d73152b..2f245c3 100644
  	xloadcols();
  
  	/* adjust fixed window geometry */
-@@ -1168,11 +1330,8 @@ xinit(int cols, int rows)
+@@ -1168,11 +1332,8 @@ xinit(int cols, int rows)
  		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
  	xw.attrs.colormap = xw.cmap;
  
@@ -2025,7 +2050,7 @@ index d73152b..2f245c3 100644
  			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
  			| CWEventMask | CWColormap, &xw.attrs);
  	if (parent != root)
-@@ -1183,12 +1342,12 @@ xinit(int cols, int rows)
+@@ -1183,12 +1344,12 @@ xinit(int cols, int rows)
  	dc.gc = XCreateGC(xw.dpy, xw.win, GCGraphicsExposures,
  			&gcvalues);
  	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
@@ -2040,7 +2065,7 @@ index d73152b..2f245c3 100644
  
  	/* Xft rendering context */
  	xw.draw = XftDrawCreate(xw.dpy, xw.buf, xw.vis, xw.cmap);
-@@ -1242,6 +1401,22 @@ xinit(int cols, int rows)
+@@ -1242,6 +1403,22 @@ xinit(int cols, int rows)
  		xsel.xtarget = XA_STRING;
  }
  
@@ -2063,7 +2088,7 @@ index d73152b..2f245c3 100644
  int
  xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x, int y)
  {
-@@ -1256,128 +1431,166 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
+@@ -1256,128 +1433,166 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
  	FcPattern *fcpattern, *fontpattern;
  	FcFontSet *fcsets[] = { NULL };
  	FcCharSet *fccharset;
@@ -2249,7 +2274,10 @@ index d73152b..2f245c3 100644
 -				font->set = FcFontSort(0, font->pattern,
 -				                       1, 0, &fcres);
 -			fcsets[0] = font->set;
--
++			/* Cleanup and get ready for next segment. */
++			hbcleanup(&shaped);
++			start = i;
+ 
 -			/*
 -			 * Nothing was found in the cache. Now use
 -			 * some dozen of Fontconfig calls to get the
@@ -2259,10 +2287,7 @@ index d73152b..2f245c3 100644
 -			 */
 -			fcpattern = FcPatternDuplicate(font->pattern);
 -			fccharset = FcCharSetCreate();
-+			/* Cleanup and get ready for next segment. */
-+			hbcleanup(&shaped);
-+			start = i;
- 
+-
 -			FcCharSetAddChar(fccharset, rune);
 -			FcPatternAddCharSet(fcpattern, FC_CHARSET,
 -					fccharset);
@@ -2332,7 +2357,7 @@ index d73152b..2f245c3 100644
  	int winx = borderpx + x * win.cw, winy = borderpx + y * win.ch,
  	    width = charlen * win.cw;
  	Color *fg, *bg, *temp, revfg, revbg, truefg, truebg;
-@@ -1513,21 +1726,20 @@ void
+@@ -1513,21 +1728,20 @@ void
  xdrawglyph(Glyph g, int x, int y)
  {
  	int numspecs;
@@ -2361,7 +2386,7 @@ index d73152b..2f245c3 100644
  
  	if (IS_SET(MODE_HIDE))
  		return;
-@@ -1661,18 +1873,16 @@ xdrawline(Line line, int x1, int y1, int x2)
+@@ -1661,18 +1875,16 @@ xdrawline(Line line, int x1, int y1, int x2)
  	Glyph base, new;
  	XftGlyphFontSpec *specs = xw.specbuf;
  
@@ -2384,7 +2409,7 @@ index d73152b..2f245c3 100644
  			i = 0;
  		}
  		if (i == 0) {
-@@ -1681,8 +1891,10 @@ xdrawline(Line line, int x1, int y1, int x2)
+@@ -1681,8 +1893,10 @@ xdrawline(Line line, int x1, int y1, int x2)
  		}
  		i++;
  	}
@@ -2397,7 +2422,7 @@ index d73152b..2f245c3 100644
  }
  
  void
-@@ -2023,17 +2235,72 @@ run(void)
+@@ -2023,17 +2237,76 @@ run(void)
  	}
  }
  
@@ -2407,6 +2432,7 @@ index d73152b..2f245c3 100644
 +	char **sdst = dst;
 +	int *idst = dst;
 +	float *fdst = dst;
++	double *ddst = dst;
 +
 +	char fullname[256];
 +	char fullclass[256];
@@ -2432,6 +2458,9 @@ index d73152b..2f245c3 100644
 +		break;
 +	case FLOAT:
 +		*fdst = strtof(ret.addr, NULL);
++		break;
++	case DOUBLE:
++		*ddst = strtod(ret.addr, NULL);
 +		break;
 +	}
 +	return 0;
@@ -2478,18 +2507,17 @@ index d73152b..2f245c3 100644
  }
  
  int
-@@ -2047,6 +2314,10 @@ main(int argc, char *argv[])
+@@ -2047,6 +2320,9 @@ main(int argc, char *argv[])
  	case 'a':
  		allowaltscreen = 0;
  		break;
 +	case 'A':
-+		alpha = strtof(EARGF(usage()), NULL);
-+		LIMIT(alpha, 0.0, 1.0);
++		opt_alpha = EARGF(usage());
 +		break;
  	case 'c':
  		opt_class = EARGF(usage());
  		break;
-@@ -2083,6 +2354,9 @@ main(int argc, char *argv[])
+@@ -2083,6 +2359,9 @@ main(int argc, char *argv[])
  	case 'v':
  		die("%s " VERSION "\n", argv0);
  		break;
@@ -2499,7 +2527,7 @@ index d73152b..2f245c3 100644
  	default:
  		usage();
  	} ARGEND;
-@@ -2096,12 +2370,19 @@ run:
+@@ -2096,12 +2375,22 @@ run:
  
  	setlocale(LC_CTYPE, "");
  	XSetLocaleModifiers("");
@@ -2508,6 +2536,9 @@ index d73152b..2f245c3 100644
 +		die("Can't open display\n");
 +
 +	config_init();
++	if (opt_alpha)
++		alpha = strtof(opt_alpha, NULL);
++	LIMIT(alpha, 0.0, 1.0);
  	cols = MAX(cols, 1);
  	rows = MAX(rows, 1);
  	tnew(cols, rows);
