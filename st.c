@@ -2116,7 +2116,7 @@ externalpipe(const Arg *arg)
 		execvp(((char **)arg->v)[0], (char **)arg->v);
 		fprintf(stderr, "st: execvp %s\n", ((char **)arg->v)[0]);
 		perror("failed");
-		exit(0);
+		_exit(1);
 	}
 
 	close(to[0]);
