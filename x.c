@@ -858,6 +858,13 @@ xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b)
 	*g = dc.col[x].color.green >> 8;
 	*b = dc.col[x].color.blue >> 8;
 
+	/* report defaultbg as configured, not premultiplied by alpha */
+	if (x == defaultbg && alpha > 0) {
+		*r = MIN(dc.col[x].color.red / alpha / 257 + 0.5, 255);
+		*g = MIN(dc.col[x].color.green / alpha / 257 + 0.5, 255);
+		*b = MIN(dc.col[x].color.blue / alpha / 257 + 0.5, 255);
+	}
+
 	return 0;
 }
 
