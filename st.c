@@ -121,6 +121,7 @@ typedef struct {
 	Line *alt;    /* alternate screen */
 	Line hist[HISTSIZE]; /* history buffer */
 	int histi;    /* history index */
+	int histn;    /* number of lines in history */
 	int scr;      /* scroll back */
 	int *dirty;   /* dirtyness of lines */
 	TCursor c;    /* cursor */
@@ -1118,7 +1119,10 @@ kscrollup(const Arg* a)
 	if (n < 0)
 		n = term.row + n;
 
-	if (term.scr <= HISTSIZE-n) {
+	/* don't scroll past the oldest line in history */
+	n = MIN(n, term.histn - term.scr);
+
+	if (n > 0) {
 		term.scr += n;
 		selscroll(0, n);
 		tfulldirt();
@@ -1159,6 +1163,7 @@ tscrollup(int orig, int n, int copyhist)
 		temp = term.hist[term.histi];
 		term.hist[term.histi] = term.line[orig];
 		term.line[orig] = temp;
+		term.histn = MIN(term.histn + 1, HISTSIZE);
 
 		/* keep the scrolled back view on the same lines */
 		if (term.scr > 0 && term.scr < HISTSIZE)
