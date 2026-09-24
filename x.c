@@ -1628,7 +1628,6 @@ changealpha(const Arg *arg)
     //}
 
     alpha = clamp(alpha, 0.0, 1.0);
-    alphaUnfocus = clamp(alpha-alphaOffset, 0.0, 1.0);
 
     xloadcols();
     redraw();
