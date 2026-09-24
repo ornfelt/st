@@ -272,6 +272,7 @@ static char *opt_line  = NULL;
 static char *opt_name  = NULL;
 static char *opt_title = NULL;
 static char *opt_dir   = NULL;
+static char *opt_alpha = NULL;
 
 static uint buttons; /* bit field of pressed buttons */
 
@@ -2315,8 +2316,7 @@ main(int argc, char *argv[])
 		allowaltscreen = 0;
 		break;
 	case 'A':
-		alpha = strtof(EARGF(usage()), NULL);
-		LIMIT(alpha, 0.0, 1.0);
+		opt_alpha = EARGF(usage());
 		break;
 	case 'c':
 		opt_class = EARGF(usage());
@@ -2375,6 +2375,9 @@ run:
 		die("Can't open display\n");
 
 	config_init();
+	if (opt_alpha)
+		alpha = strtof(opt_alpha, NULL);
+	LIMIT(alpha, 0.0, 1.0);
 	cols = MAX(cols, 1);
 	rows = MAX(rows, 1);
 	tnew(cols, rows);
