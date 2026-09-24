@@ -2729,8 +2729,17 @@ tresize(int col, int row)
 	 * memmove because we're freeing the earlier lines
 	 */
 	for (i = 0; i <= term.c.y - row; i++) {
-		free(term.line[i]);
-		free(term.alt[i]);
+		/* keep the lines slid off the main screen in history */
+		term.histi = (term.histi + 1) % HISTSIZE;
+		free(term.hist[term.histi]);
+		if (IS_SET(MODE_ALTSCREEN)) {
+			term.hist[term.histi] = term.alt[i];
+			free(term.line[i]);
+		} else {
+			term.hist[term.histi] = term.line[i];
+			free(term.alt[i]);
+		}
+		term.histn = MIN(term.histn + 1, HISTSIZE);
 	}
 	/* ensure that both src and dst are not NULL */
 	if (i > 0) {
