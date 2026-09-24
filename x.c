@@ -479,6 +479,10 @@ mouseaction(XEvent *e, uint release)
 		    ms->button == e->xbutton.button &&
 		    (match(ms->mod, state) ||  /* exact or forced */
 		     match(ms->mod, state & ~forcemousemod))) {
+			/* let the alt screen app get the wheel instead */
+			if (tisaltscr() && (ms->func == kscrollup ||
+			    ms->func == kscrolldown))
+				continue;
 			ms->func(&(ms->arg));
 			return 1;
 		}

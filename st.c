@@ -1074,13 +1074,24 @@ tswapscreen(void)
 	term.line = term.alt;
 	term.alt = tmp;
 	term.mode ^= MODE_ALTSCREEN;
+	term.scr = 0;
 	tfulldirt();
+}
+
+int
+tisaltscr(void)
+{
+	return IS_SET(MODE_ALTSCREEN);
 }
 
 void
 kscrolldown(const Arg* a)
 {
 	int n = a->i;
+
+	/* the history belongs to the main screen */
+	if (IS_SET(MODE_ALTSCREEN))
+		return;
 
 	if (n < 0)
 		n = term.row + n;
@@ -1100,6 +1111,10 @@ kscrollup(const Arg* a)
 {
 	int n = a->i;
 
+	/* the history belongs to the main screen */
+	if (IS_SET(MODE_ALTSCREEN))
+		return;
+
 	if (n < 0)
 		n = term.row + n;
 
@@ -1118,7 +1133,7 @@ tscrolldown(int orig, int n, int copyhist)
 
 	LIMIT(n, 0, term.bot-orig+1);
 
-	if (copyhist) {
+	if (copyhist && !IS_SET(MODE_ALTSCREEN)) {
 		term.histi = (term.histi - 1 + HISTSIZE) % HISTSIZE;
 		temp = term.hist[term.histi];
 		term.hist[term.histi] = term.line[term.bot];
@@ -1146,7 +1161,7 @@ tscrollup(int orig, int n, int copyhist)
 
 	LIMIT(n, 0, term.bot-orig+1);
 
-	if (copyhist) {
+	if (copyhist && !IS_SET(MODE_ALTSCREEN)) {
 		term.histi = (term.histi + 1) % HISTSIZE;
 		temp = term.hist[term.histi];
 		term.hist[term.histi] = term.line[orig];
