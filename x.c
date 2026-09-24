@@ -2433,7 +2433,8 @@ run:
 	xinit(cols, rows);
 	xsetenv();
 	selinit();
-	chdir(opt_dir);
+	if (opt_dir && chdir(opt_dir) < 0)
+		fprintf(stderr, "chdir '%s' failed: %s\n", opt_dir, strerror(errno));
 	run();
 
 	return 0;
